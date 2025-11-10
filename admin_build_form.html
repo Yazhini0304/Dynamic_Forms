@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin: Build New Form </title>
+    <style> 
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: rgb(203, 209, 240);}
+        #fields-container div { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; }
+        .option-group { margin-left: 20px; border-left: 3px solid #eee; padding-left: 10px; }
+        label { font-weight: bold; margin-top: 5px; display: block; }
+        input[type="text"], select { width: 300px; padding: 5px; margin-top: 2px; }
+        #message-box { 
+            margin-top: 20px; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Create New Dynamic Form </h1>
+    <form id="form-builder-form" method="POST">
+        
+        <label for="form_name">Form Name:</label>
+        <input type="text" id="form_name" name="form_name" required style="width: 300px;">
+        
+        <hr>
+
+        <h2>Form Fields (Step 2)</h2>
+        <div id="fields-container">
+            </div>
+
+        <button type="button" onclick="addField()">+ Add Field</button>
+        <hr>
+        
+        <button type="button" onclick="saveFormAjax()" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none;">Save Full Form</button>
+
+        <div id="message-box"></div>
+
+    </form>
+
+    <script>
+        let fieldCounter = 0;
+        const messageBox = document.getElementById('message-box');
+
+       
+
+        function addField() {
+            const container = document.getElementById('fields-container');
+            const fieldIndex = fieldCounter++;
+
+            const fieldDiv = document.createElement('div');
+            fieldDiv.id = `field-group-${fieldIndex}`;
+            fieldDiv.innerHTML = `
+                <hr>
+                <button type="button" onclick="document.getElementById('field-group-${fieldIndex}').remove()" style="background: #dc3545; color: white; border: none; padding: 5px 10px;">Remove Field</button>
+
+                <label>Field Label:</label>
+                <input type="text" name="label[]" required placeholder="e.g., Full Name">
+
+                <label>Field Type:</label>
+                <select name="type[]" onchange="toggleOptions(this, ${fieldIndex})">
+                    <option value="text">Text</option>
+                    <option value="textarea">Textarea</option>
+                    <option value="number">Number</option>
+                    <option value="date">Date</option>
+                    <option value="dropdown">Dropdown</option>
+                    <option value="radio">Radio</option>
+                    <option value="checkbox">Checkbox</option>
+                </select>
+
+                <label>Required:</label>
+                <select name="required[]">
+                    <option value="1">Yes</option>
+                    <option value="0" selected>No</option>
+                </select>
+
+                <label>Placeholder (Optional):</label>
+                <input type="text" name="placeholder[]" placeholder="e.g., Enter your full name">
+
+                <input type="hidden" name="sort_order[]" value="${fieldIndex}"> 
+
+                <div id="options-container-${fieldIndex}" class="option-group" style="display: none;">
+                    <label style="margin-top: 10px;">Options:</label>
+                    <div id="options-list-${fieldIndex}">
+                        </div>
+                    <button type="button" onclick="addOption(${fieldIndex})">+ Add Option</button>
+                </div>
+            `;
+            container.appendChild(fieldDiv);
+            addOption(fieldIndex); 
+        }
+
+        function toggleOptions(selectElement, fieldIndex) {
+            const type = selectElement.value;
+            const container = document.getElementById(`options-container-${fieldIndex}`);
+            if (['dropdown', 'radio', 'checkbox'].includes(type)) {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        function addOption(fieldIndex) {
+            const list = document.getElementById(`options-list-${fieldIndex}`);
+            const optionDiv = document.createElement('div');
+            optionDiv.innerHTML = `
+                <input type="text" name="option_text[${fieldIndex}][]" placeholder="Option Text" required style="width: 200px; display: inline-block;">
+                <button type="button" onclick="this.parentNode.remove()" style="background: red; color: white; border: none; padding: 5px 10px;">-</button>
+            `;
+            list.appendChild(optionDiv);
+        }
+
+       
+        async function saveFormAjax() {
+           
+            const formNameInput = document.getElementById('form_name');
+            if (!formNameInput.value.trim()) {
+                showMessage('Form Name is required!', 'error');
+                formNameInput.focus();
+                return;
+            }
+
+            
+            const formElement = document.getElementById('form-builder-form');
+            const formData = new FormData(formElement);
+            
+            showMessage('Saving form...', 'success');
+            
+            try {
+               
+                const response = await fetch('admin_save_form.php', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                
+                const resultText = await response.text();
+
+                if (resultText.includes('✅ Form Configuration Saved!')) {
+                    showMessage('Form saved successfully! You can build another one.', 'success');
+                    
+                    formElement.reset();
+                    document.getElementById('fields-container').innerHTML = '';
+                    fieldCounter = 0;
+                    addField(); 
+
+                } else if (resultText.includes('Error Saving Form!')) {
+                    showMessage('Error during saving. Check PHP logs.', 'error');
+                   
+                } else {
+                       showMessage('An unexpected error occurred. Check server logs.', 'error');
+                }
+
+            } catch (error) {
+                console.error('Network or Fetch Error:', error);
+                showMessage('A network error occurred while submitting the form.', 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            messageBox.className = '';
+            messageBox.classList.add(type);
+            messageBox.innerHTML = message;
+        }
+
+        addField();
+        
+    </script>
+</body>
+</html>
